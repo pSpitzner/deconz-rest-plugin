@@ -2953,7 +2953,11 @@ int DeRestPluginPrivate::recallScene(const ApiRequest &req, ApiResponse &rsp)
                 else if(ls->colorMode() == QLatin1String("ct"))
                 {
                     item = lightNode->item(RStateCt);
-                    if (item && ls->colorTemperature() != item->toNumber())
+                    if (lightNode->manufacturer() == QLatin1String("GLEDOPTO") &&
+                        lightNode->type() == QLatin1String("Extended color light") ) {
+                        // pass, we update manually below
+                    }
+                    else if (item && ls->colorTemperature() != item->toNumber())
                     {
                         item->setValue(ls->colorTemperature());
                         Event e(RLights, RStateCt, lightNode->id(), item);
@@ -2986,6 +2990,25 @@ int DeRestPluginPrivate::recallScene(const ApiRequest &req, ApiResponse &rsp)
                 }
             }
 // #endif
+
+            if (lightNode->manufacturer() == QLatin1String("GLEDOPTO") &&
+                lightNode->type() == QLatin1String("Extended color light") &&
+                ls->colorMode() == QLatin1String("ct") ) {
+
+
+                TaskItem task2;
+                task2.lightNode = lightNode;
+                task2.req.dstAddress() = task2.lightNode->address();
+                task2.req.setTxOptions(deCONZ::ApsTxAcknowledgedTransmission);
+                task2.req.setDstEndpoint(task2.lightNode->haEndpoint().endpoint());
+                task2.req.setSrcEndpoint(getSrcEndpoint(task2.lightNode, task2.req));
+                task2.req.setDstAddressMode(deCONZ::ApsExtAddress);
+
+                addTaskSetColorTemperature(task2, static_cast<double>(lightNode->item(RStateCt)->toNumber()));
+                // changed = false;
+            }
+
+
             if (changed)
             {
                 updateLightEtag(lightNode);
